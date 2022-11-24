@@ -1,1 +1,61 @@
 
+import requests
+import json
+import ibmiotf.application
+import ibmiotf.device
+import time
+import random
+import sys
+
+
+#Provide your IBM Watson Device Credentials
+organization = "c285f8"
+deviceType = "Temperature_sensor"
+deviceId = "Temp12"
+authMethod = "token"
+authToken = "Temp0123"
+
+
+# Initialize GPIO
+def myCommandCallback(cmd):
+    print("Command received: %s" % cmd.data['command'])
+    control=cmd.data['command']
+    if control=="MotorON":
+        print("Motor is ON")
+    if control=="MotorOFF":
+        print("Motor is OFF")
+
+try:
+    deviceOptions = {"org": organization, "type": deviceType, "id": deviceId, "auth-method": authMethod, "auth-token": authToken}
+    deviceCli = ibmiotf.device.Client(deviceOptions)
+
+
+
+#..............................................
+except Exception as e:
+    print("Caught exception connecting device: %s" % str(e))
+    sys.exit()
+
+# Connect and send a datapoint "hello" with value "world" into the cloud as an event of type 
+deviceCli.connect()
+while True:
+ #Get Sensor Data from DHT11
+    temp=random.randint(0,50)
+    ph=random.randint(0,14)
+    turb=random.randint(0,300)
+    humid=random.randint(0,70)
+    nitro=random.randint(0,10)
+    data = {'temp': temp, 'ph' : ph, 'turb': turb, 'humid': humid, 'nitro': nitro }
+ #print data
+ 
+    def myOnPublishCallback():
+        print ("Temperature = %s" % temp, "PH Level = %s C" % ph, "Turbidity = %s C" % turb,"Humidity = %s" % humid,"Nitrate = %s" % nitro )
+  
+    success=deviceCli.publishEvent("IoTSensor", "json", data, qos=0,on_publish=myOnPublishCallback)
+    if not success:
+      print("Not connected to Iotf")
+    time.sleep(10)
+ 
+    deviceCli.commandCallback = myCommandCallback
+# Disconnect the device and application from the cloud
+deviceCli.disconnect()
